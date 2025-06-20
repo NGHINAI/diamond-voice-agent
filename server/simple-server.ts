@@ -4,6 +4,7 @@ import helmet from 'helmet';
 import { createServer } from 'http';
 import { WebSocketServer } from 'ws';
 import { seedDatabase } from './seed.js';
+import { telephonyApp } from './telephony.js';
 
 const app = express();
 const server = createServer(app);
@@ -52,14 +53,28 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Mock voice webhook for testing
-app.post('/voice/webhook', (req, res) => {
-  console.log('Mock voice webhook called:', req.body);
-  res.type('text/xml');
-  res.send(`<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-  <Say>Hello! This is a test response from the Diamond Voice Agent. In production, this would connect to the OpenAI voice agent.</Say>
-</Response>`);
+// Include telephony routes
+app.use('/', telephonyApp);
+
+// Add WebSocket endpoint for media streaming
+const mediaWss = new WebSocketServer({ server, path: '/media' });
+
+mediaWss.on('connection', (ws) => {
+  console.log('Twilio media stream connected');
+  
+  ws.on('message', (message) => {
+    try {
+      const data = JSON.parse(message.toString());
+      console.log('Received Twilio stream event:', data.event);
+      // Handle Twilio media streaming here
+    } catch (error) {
+      console.error('Error parsing Twilio message:', error);
+    }
+  });
+  
+  ws.on('close', () => {
+    console.log('Twilio media stream disconnected');
+  });
 });
 
 // API placeholder routes
